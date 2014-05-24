@@ -1,3 +1,4 @@
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -20,6 +21,9 @@ public interface ReplicaServerClientInterface extends Remote {
 	 */
 	public WriteMsg write(long txnID, long msgSeqNum, FileContent data)
 			throws RemoteException, IOException;
+	
+	public FileContent read(String fileName) throws FileNotFoundException,
+	IOException, RemoteException;
 	
 	/**
 	 * 

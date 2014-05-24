@@ -8,12 +8,12 @@ public interface MasterServerClientInterface extends Remote {
 	 * Read file from server
 	 * 
 	 * @param fileName
-	 * @return File data
+	 * @return the addresses of  of its different replicas
 	 * @throws FileNotFoundException
 	 * @throws IOException
 	 * @throws RemoteException
 	 */
-	public FileContent read(String fileName) throws FileNotFoundException,
+	public ReplicaLoc[] read(String fileName) throws FileNotFoundException,
 			IOException, RemoteException;
 
 	/**
