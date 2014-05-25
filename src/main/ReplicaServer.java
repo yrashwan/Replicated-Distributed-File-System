@@ -30,13 +30,13 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	private HashMap<String, Address[]> replicaLocations; // contains the replica server for primary files
 	private HashMap<String, LockData> lockMap; // contains the data used to lock on files while writing
 	private HashMap<Long, String> transMap;
-	private Registry registry;
 
 	public ReplicaServer(Address loc) {
 		this.currentAddress = loc;
 
 		// TODO add the current replica server to registery
-
+		//  in the start we don't call ReplicaServer, MasterServer directly .. instead we call RmiReplicaServer, RmiMasterServer respectively
+		
 		// read replica servers location from file
 		replicaServersLocation = new ArrayList<Address>();
 		try {
