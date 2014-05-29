@@ -1,13 +1,24 @@
 package utilities;
 
-public class Address {
+import java.io.Serializable;
+
+public class Address implements Serializable{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -4155677321648825510L;
 	public String ipAddr;
 	public int portNumber;
 	public String objectName;
-	
+
 	public Address(String ipAddr, int portNum, String name) {
 		this.ipAddr = ipAddr;
 		this.portNumber = portNum;
 		this.objectName = name;
+	}
+
+	@Override
+	public String toString() {
+		return "[Address : " + ipAddr + ", Port : " + portNumber + ", Object Name : " + objectName + "]";
 	}
 }

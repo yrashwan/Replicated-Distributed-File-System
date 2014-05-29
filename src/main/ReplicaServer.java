@@ -34,8 +34,12 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 
 	public ReplicaServer(Address loc) {
 		this.currentAddress = loc;
+		fileMap = new HashMap<String, FileContent>();
+		tempMap = new HashMap<String, FileContent>();
+		replicaLocations = new HashMap<String, Address[]>();
+		lockMap = new HashMap<String, LockData>();
+		transMap = new HashMap<Long, String>();
 
-		// TODO add the current replica server to registery
 		// in the start we don't call ReplicaServer, MasterServer directly .. instead we call RmiReplicaServer,
 		// RmiMasterServer respectively
 
@@ -62,8 +66,8 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 
 		if (fileMap.containsKey(data.fileName) || tempMap.containsKey(data.fileName)) {
 			// file exists
-
 			if (lockMap.get(data.fileName).transaction == txnID) {
+
 				// file is being written currently by the same transaction
 
 				// increase the number of messages
@@ -111,9 +115,6 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 				replicaLocations.put(data.fileName, replicas);
 
 				// send requests to replicas to write data
-				data.isPrimary = false;
-
-				// TODO send requests to other replicas
 			} else {
 				// not primary one of the replicated servers
 			}
@@ -137,6 +138,8 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	public boolean commit(long txnID, long numOfMsgs) throws MessageNotFoundException, RemoteException,
 			NotBoundException {
 		String fileName = transMap.remove(txnID); // remove transaction
+		System.out.println("REPLICA : " + currentAddress.toString() + ", Commit File : " + fileName);
+		
 		LockData lockData = lockMap.get(fileName);
 		if (lockData.noOfMessages != numOfMsgs)
 			return false;
@@ -183,21 +186,28 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 
 	private void writeNewData(long txnID, long msgSeqNum, FileContent data) throws NotBoundException, IOException {
 		tempMap.put(data.fileName, data);
+		System.out.println("REPLICA : " + currentAddress.toString() + ", Create New File : " + data.fileName);
 
-		if (data.isPrimary)
+		if (data.isPrimary) {
+			data.isPrimary = false;
 			writeRemotely(txnID, msgSeqNum, data);
+		}
 	}
 
 	private void appendToExistingTempFile(long txnID, long msgSeqNum, FileContent data) throws NotBoundException,
 			IOException {
+		System.out.println("REPLICA : " + currentAddress.toString() + ", Append to Existing File : " + data.fileName);
+
 		if (!tempMap.containsKey(data.fileName)) {
 			tempMap.put(data.fileName, new FileContent(fileMap.get(data.fileName)));
 		}
 
 		tempMap.get(data.fileName).data += data.data; // append the string to the existing one
 
-		if (data.isPrimary)
+		if (data.isPrimary) {
+			data.isPrimary = false;
 			writeRemotely(txnID, msgSeqNum, data);
+		}
 	}
 
 	private void writeRemotely(long txnID, long msgSeqNum, FileContent data) throws RemoteException, IOException,

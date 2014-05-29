@@ -8,10 +8,11 @@ import java.rmi.NotBoundException;
 
 import rmiObjects.RmiMasterServer;
 import rmiObjects.RmiReplicaServer;
+import test.MessageNotFoundException;
 import utilities.Address;
 
 public class Start {
-	public static void main(String[] args) throws IOException, NotBoundException {
+	public static void main(String[] args) throws IOException, NotBoundException, MessageNotFoundException {
 		BufferedReader br1 = new BufferedReader(new FileReader("masterAddr.txt"));
 		String[] tokens1 = br1.readLine().split(" ");
 		br1.close();

@@ -24,8 +24,20 @@ public class Client {
 		this.masterServer = (MasterServerClientInterface) getRemoteObject(mainServerAddress);
 	}
 
-	public void run() throws FileNotFoundException, RemoteException, IOException {
-		masterServer.read("hello");
+	public void run() throws FileNotFoundException, RemoteException, IOException, NotBoundException,
+			MessageNotFoundException {
+		String fileName = "hello.txt";
+		System.out.println("\nTest Writing File : " + fileName);
+		ArrayList<FileContent> data = new ArrayList<FileContent>();
+		for (int i = 0; i < 5; i++) {
+			data.add(new FileContent(fileName, "Write " + i + "\n", true));
+		}
+
+		write(fileName, data);
+
+		FileContent file = read(fileName);
+		System.out.println("\nCLIENT : Read File : " + fileName );
+		System.out.println(file.toString());
 	}
 
 	public FileContent read(String fileName) throws FileNotFoundException, RemoteException, IOException,
@@ -43,16 +55,27 @@ public class Client {
 
 	public void write(String fileName, ArrayList<FileContent> data) throws FileNotFoundException, RemoteException,
 			IOException, NotBoundException, MessageNotFoundException {
+		System.out.println("CLIENT : Writing File : " + fileName);
+
+		System.out.println("CLIENT : Send Request to Master Server");
 		// get the address of primary replicated server
 		WriteMsgResponse masterResponse = masterServer.write(fileName);
+
+		System.out.println("CLIENT : Get the Primary Replica : " + masterResponse.loc.toString());
 
 		// get remote primary replica object
 		ReplicaServerClientInterface primaryReplica = (ReplicaServerClientInterface) getRemoteObject(masterResponse.loc);
 
-		for (int i = 0; i < data.size(); i++)
+		for (int i = 0; i < data.size(); i++) {
+			System.out.println("\nCLIENT : Send Write Requst to PrimaryReplica : transactionID : "
+					+ masterResponse.transactionId + ", SequenceNum : " + i);
 			primaryReplica.write(masterResponse.transactionId, i, data.get(i));
+		}
 
+		System.out.println("\nCLIENT : Send Commit Request to Primary Replica : transactionID : "
+				+ masterResponse.transactionId);
 		boolean finishedSuccessfully = primaryReplica.commit(masterResponse.transactionId, data.size());
+		System.out.println("\nCLIENT : Commit Response : " + finishedSuccessfully);
 	}
 
 	private Remote getRemoteObject(Address serverAddr) throws RemoteException, NotBoundException {

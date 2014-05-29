@@ -1,6 +1,12 @@
 package utilities;
 
-public class WriteMsgResponse {
+import java.io.Serializable;
+
+public class WriteMsgResponse implements Serializable{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 2676723315403138867L;
 	public int transactionId;
 	public int timeStamp;
 	public Address loc;
