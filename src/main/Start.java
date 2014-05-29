@@ -14,6 +14,8 @@ public class Start {
 	public static void main(String[] args) throws IOException, NotBoundException {
 		BufferedReader br1 = new BufferedReader(new FileReader("masterAddr.txt"));
 		String[] tokens1 = br1.readLine().split(" ");
+		br1.close();
+		
 		// start master server
 		Address masterAddress = new Address(tokens1[0], Integer.parseInt(tokens1[1]), tokens1[2]);
 		new RmiMasterServer(masterAddress);
@@ -25,6 +27,8 @@ public class Start {
 			String[] tokens2 = br2.readLine().split(" ");
 			new RmiReplicaServer(new Address(tokens2[0], Integer.parseInt(tokens2[1]), tokens2[2]));
 		}
+		br2.close();
+		
 		
 		// start clinets
 		Client client = new Client(masterAddress);
