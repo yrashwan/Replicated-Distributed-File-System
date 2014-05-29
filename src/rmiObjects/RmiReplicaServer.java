@@ -23,18 +23,18 @@ public class RmiReplicaServer {
 	private static Registry registry;
 	private final String objectName;
 	
-	public RmiReplicaServer(String serverAddress,int portNumber, String objectName,Address loc) throws RemoteException {
+	public RmiReplicaServer(Address loc) throws RemoteException {
 
-		this.objectName = objectName;
+		this.objectName = loc.objectName;
 		obj_strong_ref = new ReplicaServer(loc);
 
 		// option#1 ============ using getRegistry
-		LocateRegistry.createRegistry(portNumber);
-		registry = LocateRegistry.getRegistry(serverAddress, portNumber);
+		LocateRegistry.createRegistry(loc.portNumber);
+		registry = LocateRegistry.getRegistry(loc.ipAddr, loc.portNumber);
 		ReplicaServerClientInterface stub;
 		try {
 			stub = (ReplicaServerClientInterface) UnicastRemoteObject.exportObject(
-					obj_strong_ref, portNumber);
+					obj_strong_ref, loc.portNumber);
 		} catch (ExportException e) {
 			stub = (ReplicaServerClientInterface) UnicastRemoteObject.toStub(obj_strong_ref);
 		}

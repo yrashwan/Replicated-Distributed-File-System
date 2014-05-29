@@ -22,19 +22,18 @@ public class RmiMasterServer {
 
 	private static Registry registry;
 	private final String objectName;
-	
-	public RmiMasterServer(String serverAddress,int portNumber, String objectName,Address loc) throws RemoteException {
 
-		this.objectName = objectName;
+	public RmiMasterServer(Address loc) throws RemoteException {
+
+		this.objectName = loc.objectName;
 		obj_strong_ref = new MasterServer();
 
 		// option#1 ============ using getRegistry
-		LocateRegistry.createRegistry(portNumber);
-		registry = LocateRegistry.getRegistry(serverAddress, portNumber);
+		LocateRegistry.createRegistry(loc.portNumber);
+		registry = LocateRegistry.getRegistry(loc.ipAddr, loc.portNumber);
 		MasterServerClientInterface stub;
 		try {
-			stub = (MasterServerClientInterface) UnicastRemoteObject.exportObject(
-					obj_strong_ref, portNumber);
+			stub = (MasterServerClientInterface) UnicastRemoteObject.exportObject(obj_strong_ref, loc.portNumber);
 		} catch (ExportException e) {
 			stub = (MasterServerClientInterface) UnicastRemoteObject.toStub(obj_strong_ref);
 		}
@@ -44,8 +43,7 @@ public class RmiMasterServer {
 		System.out.println("Server bound");
 	}
 
-	public void end() throws RemoteException, MalformedURLException,
-			NotBoundException {
+	public void end() throws RemoteException, MalformedURLException, NotBoundException {
 		System.out.println(Arrays.toString(registry.list()));
 		registry.unbind(objectName);
 		System.out.println("server ended");

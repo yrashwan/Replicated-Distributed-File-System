@@ -16,7 +16,7 @@ import utilities.WriteMsgResponse;
 public class MasterServer implements MasterServerClientInterface {
 
 	private HashMap<String, Address> fileMap; // carry the location of primary replica Server
-	private ArrayList<Address> replicaServersLocation;
+	private Address[] replicaServersLocation;
 	private int currentTime;
 	private int currentTransaction;
 
@@ -27,13 +27,14 @@ public class MasterServer implements MasterServerClientInterface {
 		currentTransaction = 1;
 
 		// read replica servers location from file
-		replicaServersLocation = new ArrayList<Address>();
 		try {
 			BufferedReader br = new BufferedReader(new FileReader("replicated.txt"));
-			while (br.ready()) {
+			int n = Integer.parseInt(br.readLine());
+			replicaServersLocation = new Address[n];
+			for(int i = 0; i < n; i++){
 				String s = br.readLine();
 				String[] tokens = s.split(" ");
-				replicaServersLocation.add(new Address(tokens[0], Integer.parseInt(tokens[1]), tokens[2]));
+				replicaServersLocation[i] = (new Address(tokens[0], Integer.parseInt(tokens[1]), tokens[2]));
 			}
 			br.close();
 		} catch (Exception e) {
@@ -64,8 +65,8 @@ public class MasterServer implements MasterServerClientInterface {
 	}
 
 	private Address getRandomReplicaServerLoc() {
-		int index = (int) (Math.random() * 1000) % replicaServersLocation.size();
-		return replicaServersLocation.get(index);
+		int index = (int) (Math.random() * 1000) % replicaServersLocation.length;
+		return replicaServersLocation[index];
 	}
 
 }

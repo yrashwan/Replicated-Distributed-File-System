@@ -14,6 +14,7 @@ import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.concurrent.Semaphore;
 
 import test.MessageNotFoundException;
 import utilities.Address;
@@ -22,7 +23,7 @@ import utilities.FileContent;
 public class ReplicaServer implements ReplicaServerClientInterface {
 	private final int NUM_REPLICAS = 3;
 	private Address currentAddress;
-	private ArrayList<Address> replicaServersLocation; // list of all other replication servers
+	private Address[] replicaServersLocation; // list of all other replication servers
 	private HashMap<String, FileContent> fileMap; // contains the current files on this server disk
 	// ( can be replaced with searching on hard )
 
@@ -35,16 +36,18 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		this.currentAddress = loc;
 
 		// TODO add the current replica server to registery
-		//  in the start we don't call ReplicaServer, MasterServer directly .. instead we call RmiReplicaServer, RmiMasterServer respectively
-		
+		// in the start we don't call ReplicaServer, MasterServer directly .. instead we call RmiReplicaServer,
+		// RmiMasterServer respectively
+
 		// read replica servers location from file
-		replicaServersLocation = new ArrayList<Address>();
 		try {
 			BufferedReader br = new BufferedReader(new FileReader("replicated.txt"));
-			while (br.ready()) {
+			int n = Integer.parseInt(br.readLine());
+			replicaServersLocation = new Address[n];
+			for (int i = 0; i < n; i++) {
 				String s = br.readLine();
 				String[] tokens = s.split(" ");
-				replicaServersLocation.add(new Address(tokens[0], Integer.parseInt(tokens[1]), tokens[2]));
+				replicaServersLocation[i] = (new Address(tokens[0], Integer.parseInt(tokens[1]), tokens[2]));
 			}
 			br.close();
 		} catch (Exception e) {
@@ -60,27 +63,32 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		if (fileMap.containsKey(data.fileName) || tempMap.containsKey(data.fileName)) {
 			// file exists
 
-			if (lockMap.containsKey(data.fileName)) {
-				// file is being written currently
+			if (lockMap.get(data.fileName).transaction == txnID) {
+				// file is being written currently by the same transaction
 
-				if (txnID != lockMap.get(data.fileName).transaction) {
-					// not the same transaction so has to wait
-					// TODO sort waiting threads on transaction ID (don't know how :D)
-					synchronized (lockMap.get(data.fileName).lock) {
-						// wait on this lock
-					}
-				} else {
-					// the current lock increase the number of messages
-					lockMap.get(data.fileName).noOfMessages++;
-				}
+				// increase the number of messages
+				lockMap.get(data.fileName).noOfMessages++;
 			} else {
-				lockMap.put(data.fileName, new LockData(txnID));
+				// new write request
+				try {
+					lockMap.get(data.fileName).lock.acquire();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				lockMap.get(data.fileName).transaction = txnID;
+				lockMap.get(data.fileName).noOfMessages = 1;
 			}
 
 			appendToExistingTempFile(txnID, msgSeqNum, data);
 
 		} else {
 			// file doesn't exists create new one
+			lockMap.put(data.fileName, new LockData(txnID));
+			try {
+				lockMap.get(data.fileName).lock.acquire();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 
 			if (data.isPrimary) {
 				// the primary replica
@@ -90,8 +98,8 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 				HashSet<Address> repl = new HashSet<Address>();
 				repl.add(currentAddress);
 				while (repl.size() < NUM_REPLICAS + 1) {
-					Address randomAddr = replicaServersLocation.get((int) (Math.random() * 1000)
-							% replicaServersLocation.size());
+					Address randomAddr = replicaServersLocation[(int) (Math.random() * 1000)
+							% replicaServersLocation.length];
 					repl.add(randomAddr);
 				}
 
@@ -104,9 +112,10 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 
 				// send requests to replicas to write data
 				data.isPrimary = false;
+
+				// TODO send requests to other replicas
 			} else {
 				// not primary one of the replicated servers
-				lockMap.put(data.fileName, new LockData(txnID));
 			}
 
 			writeNewData(txnID, msgSeqNum, data);
@@ -128,8 +137,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	public boolean commit(long txnID, long numOfMsgs) throws MessageNotFoundException, RemoteException,
 			NotBoundException {
 		String fileName = transMap.remove(txnID); // remove transaction
-		LockData lockData = lockMap.remove(fileName);
-		lockData.lock.notifyAll(); // Not very sure of this :D
+		LockData lockData = lockMap.get(fileName);
 		if (lockData.noOfMessages != numOfMsgs)
 			return false;
 
@@ -140,29 +148,32 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		// commit remotely
 		Address[] replicas = replicaLocations.get(fileName);
 		boolean commited = true;
-		for (int i = 0; i < replicas.length; i++) {
-			ReplicaServerClientInterface replica = (ReplicaServerClientInterface) getRemoteObject(replicas[i]);
-			commited &= replica.commit(txnID, numOfMsgs);
-		}
+		if (replicas != null) // primary replica
+			for (int i = 0; i < replicas.length; i++) {
+				ReplicaServerClientInterface replica = (ReplicaServerClientInterface) getRemoteObject(replicas[i]);
+				commited &= replica.commit(txnID, numOfMsgs);
+			}
 
+		lockData.lock.release();
 		return commited;
 	}
 
 	@Override
 	public boolean abort(long txnID) throws RemoteException, NotBoundException {
 		String fileName = transMap.remove(txnID); // remove transaction
-		LockData lockData = lockMap.remove(fileName);
-		lockData.lock.notifyAll(); // Not very sure of this :D
+		LockData lockData = lockMap.get(fileName);
 
-		tempMap.remove(fileName); // remove from temp Memory
+		tempMap.remove(fileName); // remove from temporary Memory
 
 		Address[] replicas = replicaLocations.get(fileName);
 		boolean aborted = true;
-		for (int i = 0; i < replicas.length; i++) {
-			ReplicaServerClientInterface replica = (ReplicaServerClientInterface) getRemoteObject(replicas[i]);
-			aborted &= replica.abort(txnID);
-		}
+		if (replicas != null) // primary replica
+			for (int i = 0; i < replicas.length; i++) {
+				ReplicaServerClientInterface replica = (ReplicaServerClientInterface) getRemoteObject(replicas[i]);
+				aborted &= replica.abort(txnID);
+			}
 
+		lockData.lock.release();
 		return aborted;
 	}
 
@@ -171,7 +182,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	}
 
 	private void writeNewData(long txnID, long msgSeqNum, FileContent data) throws NotBoundException, IOException {
-		// TODO write to the current replica
+		tempMap.put(data.fileName, data);
 
 		if (data.isPrimary)
 			writeRemotely(txnID, msgSeqNum, data);
@@ -179,7 +190,11 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 
 	private void appendToExistingTempFile(long txnID, long msgSeqNum, FileContent data) throws NotBoundException,
 			IOException {
-		// TODO append to the current file
+		if (!tempMap.containsKey(data.fileName)) {
+			tempMap.put(data.fileName, new FileContent(fileMap.get(data.fileName)));
+		}
+
+		tempMap.get(data.fileName).data += data.data; // append the string to the existing one
 
 		if (data.isPrimary)
 			writeRemotely(txnID, msgSeqNum, data);
@@ -208,13 +223,13 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	}
 
 	private class LockData {
-		public Object lock;
+		public Semaphore lock;
 		public long transaction;
 		public int noOfMessages;
 
 		public LockData(long transactionID) {
 			this.transaction = transactionID;
-			lock = new Object();
+			lock = new Semaphore(1);
 			noOfMessages = 1;
 		}
 	}

@@ -1,10 +1,11 @@
-127.0.0.1 100 name1
-127.0.0.2 100 name2
-127.0.0.3 100 name3
-127.0.0.4 100 name4
-127.0.0.5 100 name5
-127.0.0.6 100 name6
-127.0.0.7 100 name7
-127.0.0.8 100 name8
-127.0.0.9 100 name9
-127.0.0.10 100 name10
+10
+localhost 1000 name1
+localhost 1001 name2
+localhost 1002 name3
+localhost 1003 name4
+localhost 1004 name5
+localhost 1005 name6
+localhost 1006 name7
+localhost 1007 name8
+localhost 1008 name9
+localhost 1009 name10
