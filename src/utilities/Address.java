@@ -18,6 +18,14 @@ public class Address implements Serializable{
 	}
 
 	@Override
+	public int hashCode() {
+		return objectName.hashCode();
+	}
+	
+	public boolean equals(Address addr) {
+		return objectName.equals(addr.objectName);
+	}
+	@Override
 	public String toString() {
 		return "[Address : " + ipAddr + ", Port : " + portNumber + ", Object Name : " + objectName + "]";
 	}

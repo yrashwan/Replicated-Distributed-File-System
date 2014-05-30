@@ -3,6 +3,7 @@ package main;
 import interfaces.ReplicaServerClientInterface;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import test.MessageNotFoundException;
 import utilities.Address;
@@ -31,14 +33,26 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	private HashMap<String, Address[]> replicaLocations; // contains the replica server for primary files
 	private HashMap<String, LockData> lockMap; // contains the data used to lock on files while writing
 	private HashMap<Long, String> transMap;
+	private String directory;
+	
+	public ReplicaServer(Address loc, String directory) {
+		File dir = new File(directory);
+		dir.mkdirs();
+		this.directory = directory;
 
-	public ReplicaServer(Address loc) {
 		this.currentAddress = loc;
 		fileMap = new HashMap<String, FileContent>();
 		tempMap = new HashMap<String, FileContent>();
 		replicaLocations = new HashMap<String, Address[]>();
 		lockMap = new HashMap<String, LockData>();
 		transMap = new HashMap<Long, String>();
+		
+		System.out.println("File Map : " + fileMap.size());
+		System.out.println("Temp Map : " + tempMap.size());
+		System.out.println("Replica Locations : " + replicaLocations.size());
+		System.out.println("Lock Map : " + lockMap.size());
+		System.out.println("Trans Map : " + transMap.size());
+		
 
 		// in the start we don't call ReplicaServer, MasterServer directly .. instead we call RmiReplicaServer,
 		// RmiMasterServer respectively
@@ -71,7 +85,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 				// file is being written currently by the same transaction
 
 				// increase the number of messages
-				lockMap.get(data.fileName).noOfMessages++;
+				lockMap.get(data.fileName).noOfMessages.incrementAndGet();
 			} else {
 				// new write request
 				try {
@@ -79,8 +93,10 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
+				
 				lockMap.get(data.fileName).transaction = txnID;
-				lockMap.get(data.fileName).noOfMessages = 1;
+				// reset number of messages
+				lockMap.get(data.fileName).noOfMessages.set(1);
 			}
 
 			appendToExistingTempFile(txnID, msgSeqNum, data);
@@ -109,7 +125,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 
 				int i = 0;
 				for (Address addr : repl)
-					if (!addr.equals(currentAddress))
+					if (!addr.objectName.equals(currentAddress.objectName))
 						replicas[i++] = addr;
 
 				replicaLocations.put(data.fileName, replicas);
@@ -139,10 +155,15 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 			NotBoundException {
 		String fileName = transMap.remove(txnID); // remove transaction
 		System.out.println("REPLICA : " + currentAddress.toString() + ", Commit File : " + fileName);
-		
 		LockData lockData = lockMap.get(fileName);
-		if (lockData.noOfMessages != numOfMsgs)
+
+		System.out.println("REPCLIA : NUM OF MESSAGES : " + lockData.noOfMessages.get());
+
+		if (lockData.noOfMessages.get() != numOfMsgs) {
+			System.out.println("REPLICA : CURRENT FILE : \n" + tempMap.get(fileName));
+			lockData.lock.release();
 			return false;
+		}
 
 		FileContent data = tempMap.remove(fileName);
 		fileMap.put(fileName, data);
@@ -235,12 +256,12 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	private class LockData {
 		public Semaphore lock;
 		public long transaction;
-		public int noOfMessages;
+		public AtomicInteger noOfMessages;
 
 		public LockData(long transactionID) {
 			this.transaction = transactionID;
 			lock = new Semaphore(1);
-			noOfMessages = 1;
+			noOfMessages = new AtomicInteger(1);
 		}
 	}
 }

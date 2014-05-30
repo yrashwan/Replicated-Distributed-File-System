@@ -3,11 +3,11 @@ package main;
 import interfaces.MasterServerClientInterface;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.rmi.RemoteException;
-import java.util.ArrayList;
 import java.util.HashMap;
 
 import utilities.Address;
@@ -19,8 +19,13 @@ public class MasterServer implements MasterServerClientInterface {
 	private Address[] replicaServersLocation;
 	private int currentTime;
 	private int currentTransaction;
+	private String directory;
 
-	public MasterServer() {
+	public MasterServer(String directory) {
+		File dir = new File(directory);
+		dir.mkdirs();
+		this.directory = directory;
+		
 		// TODO read this map from file
 		fileMap = new HashMap<String, Address>();
 		currentTime = 1;

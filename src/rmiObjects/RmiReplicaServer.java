@@ -23,10 +23,9 @@ public class RmiReplicaServer {
 	private static Registry registry;
 	private final String objectName;
 	
-	public RmiReplicaServer(Address loc) throws RemoteException {
-
+	public RmiReplicaServer(Address loc, String directory) throws RemoteException {
 		this.objectName = loc.objectName;
-		obj_strong_ref = new ReplicaServer(loc);
+		obj_strong_ref = new ReplicaServer(loc, directory);
 
 		// option#1 ============ using getRegistry
 		LocateRegistry.createRegistry(loc.portNumber);

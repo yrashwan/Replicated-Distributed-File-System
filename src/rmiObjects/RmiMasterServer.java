@@ -23,10 +23,10 @@ public class RmiMasterServer {
 	private static Registry registry;
 	private final String objectName;
 
-	public RmiMasterServer(Address loc) throws RemoteException {
+	public RmiMasterServer(Address loc, String directory) throws RemoteException {
 
 		this.objectName = loc.objectName;
-		obj_strong_ref = new MasterServer();
+		obj_strong_ref = new MasterServer(directory);
 
 		// option#1 ============ using getRegistry
 		LocateRegistry.createRegistry(loc.portNumber);
