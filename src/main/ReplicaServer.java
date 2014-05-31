@@ -3,17 +3,12 @@ package main;
 import interfaces.ReplicaServerClientInterface;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.rmi.NotBoundException;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.util.HashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,15 +16,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import test.MessageNotFoundException;
 import utilities.Address;
 import utilities.FileContent;
+import utilities.MethodsUtility;
 
 public class ReplicaServer implements ReplicaServerClientInterface {
 	private Address currentAddress;
 	private Address[] replicaServersLocation; // list of all other replication servers
 	private HashMap<String, FileContent> tempMap; // contains the files written for first time
-	private HashMap<String, Address[]> replicaLocations; // contains the replica server for primary files
-	private HashMap<String, LockData> lockMap; // contains the data used to lock on files while writing
+	private HashMap<String, Address[]> replicaLocations; // contains the replica server for primary
+															// files
+	private HashMap<String, LockData> lockMap; // contains the data used to lock on files while
+												// writing
 	private HashMap<Long, String> transMap;
 	private String directory;
+	private final String METADATA = "metaData.txt";
 
 	public ReplicaServer(Address loc, String directory) {
 		File dir = new File(directory);
@@ -38,11 +37,12 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 
 		this.currentAddress = loc;
 		tempMap = new HashMap<String, FileContent>();
-		replicaLocations = new HashMap<String, Address[]>();
+		replicaLocations = MethodsUtility.readMetaData(directory + METADATA);
 		lockMap = new HashMap<String, LockData>();
 		transMap = new HashMap<Long, String>();
 
-		// in the start we don't call ReplicaServer, MasterServer directly .. instead we call RmiReplicaServer,
+		// in the start we don't call ReplicaServer, MasterServer directly .. instead we call
+		// RmiReplicaServer,
 		// RmiMasterServer respectively
 
 		// read replica servers location from file
@@ -53,7 +53,8 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 			for (int i = 0; i < n; i++) {
 				String s = br.readLine();
 				String[] tokens = s.split(" ");
-				replicaServersLocation[i] = (new Address(tokens[0], Integer.parseInt(tokens[1]), tokens[2]));
+				replicaServersLocation[i] = (new Address(tokens[0], Integer.parseInt(tokens[1]),
+						tokens[2]));
 			}
 			br.close();
 		} catch (Exception e) {
@@ -62,13 +63,14 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	}
 
 	@Override
-	public void write(long txnID, long msgSeqNum, FileContent data) throws RemoteException, IOException,
-			NotBoundException {
+	public void write(long txnID, long msgSeqNum, FileContent data) throws RemoteException,
+			IOException, NotBoundException {
 		transMap.put(txnID, data.fileName);
-		if(!lockMap.containsKey(data.fileName))
+		if (!lockMap.containsKey(data.fileName))
 			createNewLock(data.fileName, txnID);
 
-		if (existsOnDisk(data.fileName) || tempMap.containsKey(data.fileName)) {
+		if (MethodsUtility.existsOnDisk(directory + data.fileName)
+				|| tempMap.containsKey(data.fileName)) {
 			// file exists
 
 			if (lockMap.get(data.fileName).transaction == txnID) {
@@ -98,24 +100,17 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		}
 	}
 
-	private void createNewLock(String fileName, long txnID) {
-		lockMap.put(fileName, new LockData(txnID));
-		try {
-			lockMap.get(fileName).lock.acquire();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}		
-	}
-
 	@Override
-	public FileContent read(String fileName) throws FileNotFoundException, IOException, RemoteException {
+	public FileContent read(String fileName) throws FileNotFoundException, IOException,
+			RemoteException {
 		// if file not found throw new file not found exception
-		if (!existsOnDisk(fileName)) {
+		if (!MethodsUtility.existsOnDisk(directory + fileName)) {
 			throw new FileNotFoundException();
 		}
 
 		// if found return the file data
-		return readFromDisk(fileName);
+		String data = MethodsUtility.readFromDisk(directory + fileName);
+		return new FileContent(fileName, data, false);
 	}
 
 	@Override
@@ -135,14 +130,15 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		}
 
 		FileContent data = tempMap.remove(fileName);
-		writeToDisk(fileName, data);
+		MethodsUtility.writeToDisk(directory + fileName, data.data);
 
 		// commit remotely
 		Address[] replicas = replicaLocations.get(fileName);
 		boolean commited = true;
 		if (replicas != null) // primary replica
 			for (int i = 0; i < replicas.length; i++) {
-				ReplicaServerClientInterface replica = (ReplicaServerClientInterface) getRemoteObject(replicas[i]);
+				ReplicaServerClientInterface replica = (ReplicaServerClientInterface) MethodsUtility
+						.getRemoteObject(replicas[i]);
 				commited &= replica.commit(txnID, numOfMsgs);
 			}
 
@@ -161,12 +157,22 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		boolean aborted = true;
 		if (replicas != null) // primary replica
 			for (int i = 0; i < replicas.length; i++) {
-				ReplicaServerClientInterface replica = (ReplicaServerClientInterface) getRemoteObject(replicas[i]);
+				ReplicaServerClientInterface replica = (ReplicaServerClientInterface) MethodsUtility
+						.getRemoteObject(replicas[i]);
 				aborted &= replica.abort(txnID);
 			}
 
 		lockData.lock.release();
 		return aborted;
+	}
+
+	private void createNewLock(String fileName, long txnID) {
+		lockMap.put(fileName, new LockData(txnID));
+		try {
+			lockMap.get(fileName).lock.acquire();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private void writeNewData(long txnID, long msgSeqNum, FileContent data)
@@ -181,12 +187,14 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		}
 	}
 
-	private void appendToExistingTempFile(long txnID, long msgSeqNum, FileContent data) throws NotBoundException,
-			IOException {
-		System.out.println("REPLICA : " + currentAddress.toString() + ", Append to Existing File : " + data.fileName);
+	private void appendToExistingTempFile(long txnID, long msgSeqNum, FileContent data)
+			throws NotBoundException, IOException {
+		System.out.println("REPLICA : " + currentAddress.toString()
+				+ ", Append to Existing File : " + data.fileName);
 
 		if (!tempMap.containsKey(data.fileName)) {
-			tempMap.put(data.fileName, new FileContent(readFromDisk(data.fileName)));
+			String s = MethodsUtility.readFromDisk(directory + data.fileName);
+			tempMap.put(data.fileName, new FileContent(data.fileName, s, false));
 		}
 
 		tempMap.get(data.fileName).data += data.data; // append the string to the existing one
@@ -197,60 +205,21 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		}
 	}
 
-	private boolean existsOnDisk(String fileName) {
-		File file = new File(directory + fileName);
-		return file.exists();
-	}
-//
-	private FileContent readFromDisk(String fileName) {
-		try {
-			BufferedReader br = new BufferedReader(new FileReader(directory + fileName));
-			String s = br.readLine();
-			while (br.ready()) {
-				s += "\n" + br.readLine();
-			}
-			br.close();
-			return new FileContent(fileName, s, false);
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return null;
-	}
-
-	private void writeToDisk(String fileName, FileContent data) {
-		try {
-			BufferedWriter bw = new BufferedWriter(new FileWriter(directory + fileName));
-			bw.write(data.data);
-			bw.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-
-	private void writeRemotely(long txnID, long msgSeqNum, FileContent data) throws RemoteException, IOException,
-			NotBoundException {
+	private void writeRemotely(long txnID, long msgSeqNum, FileContent data)
+			throws RemoteException, IOException, NotBoundException {
 		// write to remote replica
 		Address[] replicas = replicaLocations.get(data.fileName);
 
 		for (int j = 0; j < replicas.length; j++) {
 			// get remote replica object
-			ReplicaServerClientInterface replica = (ReplicaServerClientInterface) getRemoteObject(replicas[j]);
+			ReplicaServerClientInterface replica = (ReplicaServerClientInterface) MethodsUtility
+					.getRemoteObject(replicas[j]);
 
 			// write at remote replica
 			replica.write(txnID, msgSeqNum, data);
 		}
 	}
 
-	private Remote getRemoteObject(Address serverAddr) throws RemoteException, NotBoundException {
-		// get registry on the serverAdress
-		Registry registry = LocateRegistry.getRegistry(serverAddr.ipAddr, serverAddr.portNumber);
-
-		// currently we use the same reference, try to process it every time
-		return registry.lookup(serverAddr.objectName);
-	}
-//
 	private class LockData {
 		public Semaphore lock;
 		public long transaction;
@@ -264,7 +233,9 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	}
 
 	@Override
-	public void addReplicas(String fileName, Address[] replicas) throws RemoteException, NotBoundException{
+	public void addReplicas(String fileName, Address[] replicas) throws RemoteException,
+			NotBoundException {
 		replicaLocations.put(fileName, replicas);
+		MethodsUtility.appendToMetaData(directory + METADATA, fileName, replicas);
 	}
 }

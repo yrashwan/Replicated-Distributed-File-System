@@ -27,6 +27,6 @@ public class Address implements Serializable{
 	}
 	@Override
 	public String toString() {
-		return  ipAddr + " " + portNumber + " " + objectName;
+		return  ipAddr + "<" + portNumber + "<" + objectName;
 	}
 }

@@ -9,14 +9,12 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.rmi.NotBoundException;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.util.HashMap;
 import java.util.HashSet;
 
 import utilities.Address;
+import utilities.MethodsUtility;
 import utilities.WriteMsgResponse;
 
 public class MasterServer implements MasterServerClientInterface {
@@ -27,6 +25,7 @@ public class MasterServer implements MasterServerClientInterface {
 	private int currentTransaction;
 	private final int NUM_REPLICAS = 4;
 	private String directory;
+	private final String METADATA = "metaData.txt";
 
 	public MasterServer(String directory) {
 		File dir = new File(directory);
@@ -34,7 +33,7 @@ public class MasterServer implements MasterServerClientInterface {
 		this.directory = directory;
 
 		// TODO read this map from file
-		fileMap = new HashMap<String, Address[]>();
+		fileMap = MethodsUtility.readMetaData(this.directory + METADATA);
 		currentTime = 1;
 		currentTransaction = 1;
 
@@ -77,23 +76,17 @@ public class MasterServer implements MasterServerClientInterface {
 			for (int i = 1; i < replicas.length; i++)
 				otherReplicas[i - 1] = replicas[i];
 
-			ReplicaServerClientInterface primaryReplica = (ReplicaServerClientInterface) getRemoteObject(replicas[0]);
+			ReplicaServerClientInterface primaryReplica = (ReplicaServerClientInterface) MethodsUtility
+					.getRemoteObject(replicas[0]);
 			primaryReplica.addReplicas(fileName, otherReplicas);
 
 			fileMap.put(fileName, replicas);
+			MethodsUtility.appendToMetaData(directory + METADATA, fileName, replicas);
 		}
 
 		WriteMsgResponse response = new WriteMsgResponse(currentTransaction++, currentTime++,
 				fileMap.get(fileName)[0]);
 		return response;
-	}
-
-	private Remote getRemoteObject(Address serverAddr) throws RemoteException, NotBoundException {
-		// get registry on the serverAdress
-		Registry registry = LocateRegistry.getRegistry(serverAddr.ipAddr, serverAddr.portNumber);
-
-		// currently we use the same reference, try to process it every time
-		return registry.lookup(serverAddr.objectName);
 	}
 
 	private Address[] getRandomReplicas() {
@@ -112,11 +105,4 @@ public class MasterServer implements MasterServerClientInterface {
 
 		return replicas;
 	}
-//		public static void main(String[] args) throws RemoteException {
-//		// start master server
-////		Address masterAddress = new Address(args[0],
-////				Integer.parseInt(args[1]), args[2]);
-////		new RmiMasterServer(masterAddress, "ServersData/Master/");
-//	}
-
 }
