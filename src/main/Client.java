@@ -39,7 +39,7 @@ public class Client {
 
 			Scanner in = new Scanner(System.in);
 			System.out
-					.println("for read enter 0, for write enter 1 and 2 for commit; anything else to terminate!");
+					.println("for read enter 0, for write enter 1 ,2 for commit and 3 for abort; anything else to terminate!");
 			while (in.hasNext()) {
 				int type = in.nextInt();
 				if (type == 0) {
@@ -61,7 +61,7 @@ public class Client {
 							.println("enter file name to write followed by data, terminated by single line -1:");
 					String fileName = in.next();
 					ArrayList<FileContent> data = filesData.get(fileName);
-					if(data == null){
+					if (data == null) {
 						data = new ArrayList<FileContent>();
 					}
 					String nextLine;
@@ -70,16 +70,27 @@ public class Client {
 								true));
 					}
 					System.out.println("CLIENT : Writing File " + fileName);
-					
-					Pair<ReplicaServerClientInterface, Integer> value = write(fileName, data);
+
+					Pair<ReplicaServerClientInterface, Integer> value = write(
+							fileName, data);
 					transictionInfo.put(fileName, value);
-					
+
 					filesData.put(fileName, data);
 				} else if (type == 2) {
 					System.out.println("Enter fileName to commit");
 					String fileName = in.next();
-					Pair<ReplicaServerClientInterface, Integer> value = transictionInfo.get(fileName);
-					commit(fileName, value.first(), value.second(), filesData.get(fileName).size());
+					Pair<ReplicaServerClientInterface, Integer> value = transictionInfo
+							.get(fileName);
+					commit(fileName, value.first(), value.second(), filesData
+							.get(fileName).size());
+					filesData.remove(fileName);
+					transictionInfo.remove(fileName);
+				} else if (type == 3) {
+					System.out.println("Enter fileName to abort");
+					String fileName = in.next();
+					Pair<ReplicaServerClientInterface, Integer> value = transictionInfo
+							.get(fileName);
+					value.first().abort(value.second());
 					filesData.remove(fileName);
 					transictionInfo.remove(fileName);
 				} else {
@@ -87,8 +98,7 @@ public class Client {
 					in.close();
 					return;
 				}
-				System.out
-						.println("for read enter 0, for write enter 1; anything else to terminate!");
+				System.out.println("for read enter 0, for write enter 1 ,2 for commit and 3 for abort; anything else to terminate!");
 			}
 			in.close();
 			System.out.println("Client is out!");
@@ -122,9 +132,10 @@ public class Client {
 		return file;
 	}
 
-	public Pair<ReplicaServerClientInterface, Integer> write(String fileName, ArrayList<FileContent> data)
-			throws FileNotFoundException, RemoteException, IOException,
-			NotBoundException, MessageNotFoundException {
+	public Pair<ReplicaServerClientInterface, Integer> write(String fileName,
+			ArrayList<FileContent> data) throws FileNotFoundException,
+			RemoteException, IOException, NotBoundException,
+			MessageNotFoundException {
 		System.out.println("CLIENT : Writing File : " + fileName);
 
 		System.out.println("CLIENT : Send Request to Master Server");
@@ -145,24 +156,27 @@ public class Client {
 							+ i);
 			primaryReplica.write(masterResponse.transactionId, i, data.get(i));
 		}
-		return new Pair<ReplicaServerClientInterface, Integer>(primaryReplica, masterResponse.transactionId);
-//		System.out
-//				.println("\nCLIENT : Send Commit Request to Primary Replica : transactionID : "
-//						+ masterResponse.transactionId);
-//		boolean finishedSuccessfully = primaryReplica.commit(
-//				masterResponse.transactionId, data.size());
-//		System.out.println("\nCLIENT : Commit Response : "
-//				+ finishedSuccessfully);
+		return new Pair<ReplicaServerClientInterface, Integer>(primaryReplica,
+				masterResponse.transactionId);
+		// System.out
+		// .println("\nCLIENT : Send Commit Request to Primary Replica : transactionID : "
+		// + masterResponse.transactionId);
+		// boolean finishedSuccessfully = primaryReplica.commit(
+		// masterResponse.transactionId, data.size());
+		// System.out.println("\nCLIENT : Commit Response : "
+		// + finishedSuccessfully);
 
 	}
 
-	private void commit(String fileName,ReplicaServerClientInterface primaryReplica, int transactionId, int dataSize) throws RemoteException,
-			IOException, NotBoundException, MessageNotFoundException {
+	private void commit(String fileName,
+			ReplicaServerClientInterface primaryReplica, int transactionId,
+			int dataSize) throws RemoteException, IOException,
+			NotBoundException, MessageNotFoundException {
 		System.out
 				.println("\nCLIENT : Send Commit Request to Primary Replica : transactionID : "
 						+ transactionId);
-		boolean finishedSuccessfully = primaryReplica.commit(
-				transactionId, dataSize);
+		boolean finishedSuccessfully = primaryReplica.commit(transactionId,
+				dataSize);
 		System.out.println("\nCLIENT : Commit Response : "
 				+ finishedSuccessfully);
 	}
