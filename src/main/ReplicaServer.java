@@ -9,15 +9,12 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -26,7 +23,6 @@ import utilities.Address;
 import utilities.FileContent;
 
 public class ReplicaServer implements ReplicaServerClientInterface {
-	private final int NUM_REPLICAS = 3;
 	private Address currentAddress;
 	private Address[] replicaServersLocation; // list of all other replication servers
 	private HashMap<String, FileContent> tempMap; // contains the files written for first time
@@ -69,9 +65,12 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	public void write(long txnID, long msgSeqNum, FileContent data) throws RemoteException, IOException,
 			NotBoundException {
 		transMap.put(txnID, data.fileName);
+		if(!lockMap.containsKey(data.fileName))
+			createNewLock(data.fileName, txnID);
 
 		if (existsOnDisk(data.fileName) || tempMap.containsKey(data.fileName)) {
 			// file exists
+
 			if (lockMap.get(data.fileName).transaction == txnID) {
 
 				// file is being written currently by the same transaction
@@ -95,40 +94,17 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 
 		} else {
 			// file doesn't exists create new one
-			lockMap.put(data.fileName, new LockData(txnID));
-			try {
-				lockMap.get(data.fileName).lock.acquire();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-
-			if (data.isPrimary) {
-				// the primary replica
-				// choose new replicas
-				Address[] replicas = new Address[NUM_REPLICAS];
-				// choose three unique replica servers
-				HashSet<Address> repl = new HashSet<Address>();
-				repl.add(currentAddress);
-				while (repl.size() < NUM_REPLICAS + 1) {
-					Address randomAddr = replicaServersLocation[(int) (Math.random() * 1000)
-							% replicaServersLocation.length];
-					repl.add(randomAddr);
-				}
-
-				int i = 0;
-				for (Address addr : repl)
-					if (!addr.objectName.equals(currentAddress.objectName))
-						replicas[i++] = addr;
-
-				replicaLocations.put(data.fileName, replicas);
-
-				// send requests to replicas to write data
-			} else {
-				// not primary one of the replicated servers
-			}
-
 			writeNewData(txnID, msgSeqNum, data);
 		}
+	}
+
+	private void createNewLock(String fileName, long txnID) {
+		lockMap.put(fileName, new LockData(txnID));
+		try {
+			lockMap.get(fileName).lock.acquire();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}		
 	}
 
 	@Override
@@ -143,10 +119,11 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	}
 
 	@Override
-	public boolean commit(long txnID, long numOfMsgs) throws MessageNotFoundException, RemoteException,
-			NotBoundException {
+	public boolean commit(long txnID, long numOfMsgs) throws MessageNotFoundException,
+			RemoteException, NotBoundException {
 		String fileName = transMap.remove(txnID); // remove transaction
-		System.out.println("REPLICA : " + currentAddress.toString() + ", Commit File : " + fileName);
+		System.out
+				.println("REPLICA : " + currentAddress.toString() + ", Commit File : " + fileName);
 		LockData lockData = lockMap.get(fileName);
 
 		System.out.println("REPCLIA : NUM OF MESSAGES : " + lockData.noOfMessages.get());
@@ -192,9 +169,11 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		return aborted;
 	}
 
-	private void writeNewData(long txnID, long msgSeqNum, FileContent data) throws NotBoundException, IOException {
+	private void writeNewData(long txnID, long msgSeqNum, FileContent data)
+			throws NotBoundException, IOException {
 		tempMap.put(data.fileName, data);
-		System.out.println("REPLICA : " + currentAddress.toString() + ", Create New File : " + data.fileName);
+		System.out.println("REPLICA : " + currentAddress.toString() + ", Create New File : "
+				+ data.fileName);
 
 		if (data.isPrimary) {
 			data.isPrimary = false;
@@ -222,7 +201,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		File file = new File(directory + fileName);
 		return file.exists();
 	}
-
+//
 	private FileContent readFromDisk(String fileName) {
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(directory + fileName));
@@ -233,10 +212,8 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 			br.close();
 			return new FileContent(fileName, s, false);
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return null;
@@ -248,7 +225,6 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 			bw.write(data.data);
 			bw.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -274,7 +250,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		// currently we use the same reference, try to process it every time
 		return registry.lookup(serverAddr.objectName);
 	}
-
+//
 	private class LockData {
 		public Semaphore lock;
 		public long transaction;
@@ -285,5 +261,10 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 			lock = new Semaphore(1);
 			noOfMessages = new AtomicInteger(1);
 		}
+	}
+
+	@Override
+	public void addReplicas(String fileName, Address[] replicas) throws RemoteException, NotBoundException{
+		replicaLocations.put(fileName, replicas);
 	}
 }

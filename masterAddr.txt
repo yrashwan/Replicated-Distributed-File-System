@@ -1,1 +1,1 @@
-localhost 12345 master
+localhost 8000 master

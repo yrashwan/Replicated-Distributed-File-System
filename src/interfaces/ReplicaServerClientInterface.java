@@ -6,11 +6,8 @@ import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
-
-
 import test.MessageNotFoundException;
 import utilities.FileContent;
-import utilities.WriteMsgResponse;
 
 public interface ReplicaServerClientInterface extends Remote {
 	/**
@@ -55,4 +52,11 @@ public interface ReplicaServerClientInterface extends Remote {
 	 * @throws NotBoundException 
 	 */
 	public boolean abort(long txnID) throws RemoteException, NotBoundException;
+	
+	/**
+	 * add the replicas for the primary replica one
+	 * @param fileName
+	 * @param address
+	 */
+	public void addReplicas(String fileName, utilities.Address[] address)throws RemoteException, NotBoundException;
 }
