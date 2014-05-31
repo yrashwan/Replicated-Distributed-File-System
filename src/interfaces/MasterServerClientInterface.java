@@ -32,4 +32,5 @@ public interface MasterServerClientInterface extends Remote {
 	 */
 	public WriteMsgResponse write(String fileName) throws RemoteException, IOException, NotBoundException;
 
+	public void abort(String fileName) throws RemoteException, NotBoundException;
 }

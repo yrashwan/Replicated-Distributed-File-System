@@ -101,8 +101,10 @@ public class MethodsUtility {
 		return map;
 	}
 	
-	public static void appendToMetaData(String fileDir, String fileName, Address[] replicas) {
-		String dataToAppend = fileName + " " + MethodsUtility.convertToString(replicas) + "\n";
-		MethodsUtility.appendToFileOnDisk(fileDir, dataToAppend);
+	public static void writeMetaData(String fileDir, HashMap<String, Address[]> fileMap) {
+		String out = "";
+		for(String key : fileMap.keySet())
+			out += key + " " + MethodsUtility.convertToString(fileMap.get(key)) + "\n";
+		MethodsUtility.writeToDisk(fileDir, out);
 	}
 }

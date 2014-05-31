@@ -23,9 +23,9 @@ public class RmiReplicaServer {
 	private static Registry registry;
 	private final String objectName;
 	
-	public RmiReplicaServer(Address loc, String directory) throws RemoteException {
+	public RmiReplicaServer(Address loc, Address masterAddress, String directory) throws RemoteException {
 		this.objectName = loc.objectName;
-		obj_strong_ref = new ReplicaServer(loc, directory);
+		obj_strong_ref = new ReplicaServer(loc, masterAddress, directory);
 
 		// option#1 ============ using getRegistry
 		LocateRegistry.createRegistry(loc.portNumber);
@@ -55,7 +55,8 @@ public class RmiReplicaServer {
 				+ Arrays.toString(args));
 		new RmiReplicaServer(new Address(args[0],
 				Integer.parseInt(args[1]), args[2]),
-				"ServersData/Replica" + args[3] + "/");
+				new Address(args[3], Integer.parseInt(args[4]), args[5]),
+				"ServersData/Replica" + args[6] + "/");
 		}catch(Exception e){
 			System.out.println(e.getMessage());
 		}

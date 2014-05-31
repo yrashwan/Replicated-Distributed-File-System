@@ -107,7 +107,7 @@ public class Start {
 		for (int i = 0; i < n; i++) {
 			String[] tokens2 = br2.readLine().split(" ");
 			new RmiReplicaServer(new Address(tokens2[0],
-					Integer.parseInt(tokens2[1]), tokens2[2]),
+					Integer.parseInt(tokens2[1]), tokens2[2]), masterAddress,
 					"ServersData/Replica" + i + "/");
 		}
 		br2.close();

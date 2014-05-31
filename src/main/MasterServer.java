@@ -32,7 +32,6 @@ public class MasterServer implements MasterServerClientInterface {
 		dir.mkdirs();
 		this.directory = directory;
 
-		// TODO read this map from file
 		fileMap = MethodsUtility.readMetaData(this.directory + METADATA);
 		currentTime = 1;
 		currentTransaction = 1;
@@ -81,7 +80,7 @@ public class MasterServer implements MasterServerClientInterface {
 			primaryReplica.addReplicas(fileName, otherReplicas);
 
 			fileMap.put(fileName, replicas);
-			MethodsUtility.appendToMetaData(directory + METADATA, fileName, replicas);
+			MethodsUtility.writeMetaData(directory + METADATA, fileMap);
 		}
 
 		WriteMsgResponse response = new WriteMsgResponse(currentTransaction++, currentTime++,
@@ -104,5 +103,11 @@ public class MasterServer implements MasterServerClientInterface {
 			replicas[i++] = addr;
 
 		return replicas;
+	}
+
+	@Override
+	public void abort(String fileName) throws RemoteException, NotBoundException {
+		fileMap.remove(fileName);
+		MethodsUtility.writeMetaData(directory + METADATA, fileMap);
 	}
 }

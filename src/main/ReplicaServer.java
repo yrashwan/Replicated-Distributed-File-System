@@ -1,5 +1,6 @@
 package main;
 
+import interfaces.MasterServerClientInterface;
 import interfaces.ReplicaServerClientInterface;
 
 import java.io.BufferedReader;
@@ -19,7 +20,7 @@ import utilities.FileContent;
 import utilities.MethodsUtility;
 
 public class ReplicaServer implements ReplicaServerClientInterface {
-	private Address currentAddress;
+	private Address currentAddress, masterAddress;
 	private Address[] replicaServersLocation; // list of all other replication servers
 	private HashMap<String, FileContent> tempMap; // contains the files written for first time
 	private HashMap<String, Address[]> replicaLocations; // contains the replica server for primary
@@ -30,7 +31,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	private String directory;
 	private final String METADATA = "metaData.txt";
 
-	public ReplicaServer(Address loc, String directory) {
+	public ReplicaServer(Address loc, Address masterAddress, String directory) {
 		File dir = new File(directory);
 		dir.mkdirs();
 		this.directory = directory;
@@ -153,15 +154,25 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 
 		tempMap.remove(fileName); // remove from temporary Memory
 
+		replicaLocations.remove(fileName); // remove from metaData
+		MethodsUtility.writeMetaData(directory + METADATA, replicaLocations);
+
 		Address[] replicas = replicaLocations.get(fileName);
 		boolean aborted = true;
-		if (replicas != null) // primary replica
+		if (replicas != null) { // primary replica
 			for (int i = 0; i < replicas.length; i++) {
 				ReplicaServerClientInterface replica = (ReplicaServerClientInterface) MethodsUtility
 						.getRemoteObject(replicas[i]);
 				aborted &= replica.abort(txnID);
 			}
 
+			if (!MethodsUtility.existsOnDisk(directory + fileName)) {
+				// new created file so remove it from master
+				MasterServerClientInterface masterServer = (MasterServerClientInterface) MethodsUtility
+						.getRemoteObject(masterAddress);
+				masterServer.abort(fileName);
+			}
+		}
 		lockData.lock.release();
 		return aborted;
 	}
@@ -236,6 +247,6 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	public void addReplicas(String fileName, Address[] replicas) throws RemoteException,
 			NotBoundException {
 		replicaLocations.put(fileName, replicas);
-		MethodsUtility.appendToMetaData(directory + METADATA, fileName, replicas);
+		MethodsUtility.writeMetaData(directory + METADATA, replicaLocations);
 	}
 }
