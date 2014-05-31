@@ -3,10 +3,13 @@ package main;
 import interfaces.ReplicaServerClientInterface;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.rmi.NotBoundException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -26,33 +29,22 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	private final int NUM_REPLICAS = 3;
 	private Address currentAddress;
 	private Address[] replicaServersLocation; // list of all other replication servers
-	private HashMap<String, FileContent> fileMap; // contains the current files on this server disk
-	// ( can be replaced with searching on hard )
-
 	private HashMap<String, FileContent> tempMap; // contains the files written for first time
 	private HashMap<String, Address[]> replicaLocations; // contains the replica server for primary files
 	private HashMap<String, LockData> lockMap; // contains the data used to lock on files while writing
 	private HashMap<Long, String> transMap;
 	private String directory;
-	
+
 	public ReplicaServer(Address loc, String directory) {
 		File dir = new File(directory);
 		dir.mkdirs();
 		this.directory = directory;
 
 		this.currentAddress = loc;
-		fileMap = new HashMap<String, FileContent>();
 		tempMap = new HashMap<String, FileContent>();
 		replicaLocations = new HashMap<String, Address[]>();
 		lockMap = new HashMap<String, LockData>();
 		transMap = new HashMap<Long, String>();
-		
-		System.out.println("File Map : " + fileMap.size());
-		System.out.println("Temp Map : " + tempMap.size());
-		System.out.println("Replica Locations : " + replicaLocations.size());
-		System.out.println("Lock Map : " + lockMap.size());
-		System.out.println("Trans Map : " + transMap.size());
-		
 
 		// in the start we don't call ReplicaServer, MasterServer directly .. instead we call RmiReplicaServer,
 		// RmiMasterServer respectively
@@ -78,7 +70,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 			NotBoundException {
 		transMap.put(txnID, data.fileName);
 
-		if (fileMap.containsKey(data.fileName) || tempMap.containsKey(data.fileName)) {
+		if (existsOnDisk(data.fileName) || tempMap.containsKey(data.fileName)) {
 			// file exists
 			if (lockMap.get(data.fileName).transaction == txnID) {
 
@@ -93,7 +85,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-				
+
 				lockMap.get(data.fileName).transaction = txnID;
 				// reset number of messages
 				lockMap.get(data.fileName).noOfMessages.set(1);
@@ -142,12 +134,12 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 	@Override
 	public FileContent read(String fileName) throws FileNotFoundException, IOException, RemoteException {
 		// if file not found throw new file not found exception
-		if (!fileMap.containsKey(fileName)) {
+		if (!existsOnDisk(fileName)) {
 			throw new FileNotFoundException();
 		}
 
 		// if found return the file data
-		return fileMap.get(fileName);
+		return readFromDisk(fileName);
 	}
 
 	@Override
@@ -166,8 +158,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		}
 
 		FileContent data = tempMap.remove(fileName);
-		fileMap.put(fileName, data);
-		writeDataToDisk(fileName);
+		writeToDisk(fileName, data);
 
 		// commit remotely
 		Address[] replicas = replicaLocations.get(fileName);
@@ -201,10 +192,6 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		return aborted;
 	}
 
-	private void writeDataToDisk(String fileName) {
-		// TODO write data to disk
-	}
-
 	private void writeNewData(long txnID, long msgSeqNum, FileContent data) throws NotBoundException, IOException {
 		tempMap.put(data.fileName, data);
 		System.out.println("REPLICA : " + currentAddress.toString() + ", Create New File : " + data.fileName);
@@ -220,7 +207,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		System.out.println("REPLICA : " + currentAddress.toString() + ", Append to Existing File : " + data.fileName);
 
 		if (!tempMap.containsKey(data.fileName)) {
-			tempMap.put(data.fileName, new FileContent(fileMap.get(data.fileName)));
+			tempMap.put(data.fileName, new FileContent(readFromDisk(data.fileName)));
 		}
 
 		tempMap.get(data.fileName).data += data.data; // append the string to the existing one
@@ -228,6 +215,41 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		if (data.isPrimary) {
 			data.isPrimary = false;
 			writeRemotely(txnID, msgSeqNum, data);
+		}
+	}
+
+	private boolean existsOnDisk(String fileName) {
+		File file = new File(directory + fileName);
+		return file.exists();
+	}
+
+	private FileContent readFromDisk(String fileName) {
+		try {
+			BufferedReader br = new BufferedReader(new FileReader(directory + fileName));
+			String s = br.readLine();
+			while (br.ready()) {
+				s += "\n" + br.readLine();
+			}
+			br.close();
+			return new FileContent(fileName, s, false);
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+	private void writeToDisk(String fileName, FileContent data) {
+		try {
+			BufferedWriter bw = new BufferedWriter(new FileWriter(directory + fileName));
+			bw.write(data.data);
+			bw.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 
