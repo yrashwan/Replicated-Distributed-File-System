@@ -49,4 +49,15 @@ public class RmiReplicaServer {
 		registry.unbind(objectName);
 		System.out.println("server ended");
 	}
+	public static void main(String[] args) throws NumberFormatException, RemoteException {
+		try{
+		System.out.println("RMIReplicateServer: Receiving Args "
+				+ Arrays.toString(args));
+		new RmiReplicaServer(new Address(args[0],
+				Integer.parseInt(args[1]), args[2]),
+				"ServersData/Replica" + args[3] + "/");
+		}catch(Exception e){
+			System.out.println(e.getMessage());
+		}
+	}
 }

@@ -48,4 +48,18 @@ public class RmiMasterServer {
 		registry.unbind(objectName);
 		System.out.println("server ended");
 	}
+	
+	public static void main(String[] args) throws RemoteException {
+		// start master server
+		try{
+		System.out.println("RMIMasterServer: Receiving Args "
+				+ Arrays.toString(args));
+
+		Address masterAddress = new Address(args[0],
+				Integer.parseInt(args[1]), args[2]);
+		new RmiMasterServer(masterAddress, "ServersData/Master/");
+		}catch(Exception e){
+			System.out.println(e.getMessage());
+		}
+	}
 }
