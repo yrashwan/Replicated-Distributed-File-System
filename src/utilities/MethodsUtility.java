@@ -16,14 +16,15 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 public class MethodsUtility {
-	public static Remote getRemoteObject(Address serverAddr) throws RemoteException, NotBoundException {
+	public static Remote getRemoteObject(Address serverAddr) throws RemoteException,
+			NotBoundException {
 		// get registry on the serverAdress
 		Registry registry = LocateRegistry.getRegistry(serverAddr.ipAddr, serverAddr.portNumber);
 
 		// currently we use the same reference, try to process it every time
 		return registry.lookup(serverAddr.objectName);
 	}
-	
+
 	public static String readFromDisk(String fileDir) {
 		try {
 			BufferedReader br = new BufferedReader(new FileReader(fileDir));
@@ -40,7 +41,7 @@ public class MethodsUtility {
 		}
 		return null;
 	}
-	
+
 	public static void writeToDisk(String fileDir, String data) {
 		try {
 			BufferedWriter bw = new BufferedWriter(new FileWriter(fileDir));
@@ -50,8 +51,8 @@ public class MethodsUtility {
 			e.printStackTrace();
 		}
 	}
-	
-	public static void appendToFileOnDisk(String fileDir, String data){
+
+	public static void appendToFileOnDisk(String fileDir, String data) {
 		try {
 			BufferedWriter bw = new BufferedWriter(new FileWriter(fileDir, true));
 			bw.write(data);
@@ -60,10 +61,10 @@ public class MethodsUtility {
 			e.printStackTrace();
 		}
 	}
-	
-	public static String convertToString(Address[] addr){
+
+	public static String convertToString(Address[] addr) {
 		String res = addr[0].toString();
-		for(int i = 1; i < addr.length; i++)
+		for (int i = 1; i < addr.length; i++)
 			res += " " + addr[i].toString();
 		return res;
 	}
@@ -78,33 +79,35 @@ public class MethodsUtility {
 		if (MethodsUtility.existsOnDisk(fileDir)) {
 			String metaFile = MethodsUtility.readFromDisk(fileDir);
 			String[] files = metaFile.split("\n");
-			for (int i = 0; i < files.length; i++) {
-				String[] replicas = files[i].split(" ");
-				// first token file name
-				String fileName = replicas[0];
-				
-				// then the addresses to replicas
-				System.out.println(replicas.length);
-				Address[] address = new Address[replicas.length - 1];
-				for (int j = 1; j < replicas.length; j++) {
-					String[] tokens = replicas[j].split("<");
-					System.out.println(replicas[j]);
-					System.out.println(Arrays.toString(tokens));
-					address[j - 1] = new Address(tokens[0], new Integer(tokens[1]), tokens[2]);
-				}
+			for (int i = 0; i < files.length; i++)
+				if (files[i].length() > 0) {
+					String[] replicas = files[i].split(" ");
+					// first token file name
+					String fileName = replicas[0];
 
-				map.put(fileName, address);
-			}
+					// then the addresses to replicas
+					System.out.println(replicas.length);
+					Address[] address = new Address[replicas.length - 1];
+					for (int j = 1; j < replicas.length; j++) {
+						String[] tokens = replicas[j].split("<");
+						System.out.println(replicas[j]);
+						System.out.println(Arrays.toString(tokens));
+						address[j - 1] = new Address(tokens[0], new Integer(tokens[1]), tokens[2]);
+					}
+
+					map.put(fileName, address);
+				}
 		} else {
-			MethodsUtility.writeToDisk(fileDir, "");
+			return new HashMap<String, Address[]>();
 		}
 		return map;
 	}
-	
-	public static void writeMetaData(String fileDir, HashMap<String, Address[]> fileMap) {
+
+	public static void writeMetaData(String fileDir, HashMap<String, Address[]> map) {
 		String out = "";
-		for(String key : fileMap.keySet())
-			out += key + " " + MethodsUtility.convertToString(fileMap.get(key)) + "\n";
+		for (String key : map.keySet()) {
+			out += key + " " + MethodsUtility.convertToString(map.get(key)) + "\n";
+		}
 		MethodsUtility.writeToDisk(fileDir, out);
 	}
 }

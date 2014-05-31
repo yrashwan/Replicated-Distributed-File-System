@@ -10,6 +10,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -20,7 +21,7 @@ import utilities.FileContent;
 import utilities.MethodsUtility;
 
 public class ReplicaServer implements ReplicaServerClientInterface {
-	private Address currentAddress, masterAddress;
+	private final Address currentAddress, masterAddress;
 	private Address[] replicaServersLocation; // list of all other replication servers
 	private HashMap<String, FileContent> tempMap; // contains the files written for first time
 	private HashMap<String, Address[]> replicaLocations; // contains the replica server for primary
@@ -37,6 +38,7 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		this.directory = directory;
 
 		this.currentAddress = loc;
+		this.masterAddress = masterAddress;
 		tempMap = new HashMap<String, FileContent>();
 		replicaLocations = MethodsUtility.readMetaData(directory + METADATA);
 		lockMap = new HashMap<String, LockData>();
@@ -154,10 +156,9 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 
 		tempMap.remove(fileName); // remove from temporary Memory
 
-		replicaLocations.remove(fileName); // remove from metaData
+		Address[] replicas = replicaLocations.remove(fileName);
 		MethodsUtility.writeMetaData(directory + METADATA, replicaLocations);
-
-		Address[] replicas = replicaLocations.get(fileName);
+		
 		boolean aborted = true;
 		if (replicas != null) { // primary replica
 			for (int i = 0; i < replicas.length; i++) {
@@ -175,6 +176,14 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 		}
 		lockData.lock.release();
 		return aborted;
+	}
+
+	@Override
+	public void addReplicas(String fileName, Address[] replicas) throws RemoteException,
+			NotBoundException {
+		replicaLocations.put(fileName, replicas);
+		System.out.println("1 : " + Arrays.toString(replicaLocations.get(fileName)));
+		MethodsUtility.writeMetaData(directory + METADATA, replicaLocations);
 	}
 
 	private void createNewLock(String fileName, long txnID) {
@@ -241,12 +250,5 @@ public class ReplicaServer implements ReplicaServerClientInterface {
 			lock = new Semaphore(1);
 			noOfMessages = new AtomicInteger(1);
 		}
-	}
-
-	@Override
-	public void addReplicas(String fileName, Address[] replicas) throws RemoteException,
-			NotBoundException {
-		replicaLocations.put(fileName, replicas);
-		MethodsUtility.writeMetaData(directory + METADATA, replicaLocations);
 	}
 }
