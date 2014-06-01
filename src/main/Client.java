@@ -57,8 +57,9 @@ public class Client {
 					}
 
 				} else if (type == 1) {
-					System.out
-							.println("Enter 0 for read,\n\t 1 for write,\n\t 2 for commit ,\n\t 3 for abort;\n\t anything else to terminate!");
+//					System.out
+//							.println("Enter 0 for read,\n\t 1 for write,\n\t 2 for commit ,\n\t 3 for abort;\n\t anything else to terminate!");
+					System.out.println("enter file data to write");
 					String fileName = in.next();
 					ArrayList<FileContent> data = filesData.get(fileName);
 					if (data == null) {

@@ -13,9 +13,49 @@ import test.MessageNotFoundException;
 import utilities.Address;
 
 public class Start {
+/*
+	public static void startNewClient(Class<?> klass, int clientID, String clientType, String clientAddress,
+			String serverAddress, int portNumber, int numberOfAcesses, String objectName) throws IOException, InterruptedException {
+		String ssh = "ssh " + clientAddress;
 
+//		String path = System.getProperty("user.dir");
+		
+		String path = "~/Desktop/Distributed_Assignment_1/bin/";
+		String cd = "cd " + path;
+
+		String args = Integer.toString(clientID) + " " + clientType + " " + clientAddress + " " + serverAddress + " "
+				+ Integer.toString(portNumber) + " " + Integer.toString(numberOfAcesses) + " " + objectName;
+		String java = "java Client " + args;
+
+		String command = ssh + " " + cd + ";" + java;
+		
+		System.out.println("****\t" + command);
+		Runtime.getRuntime().exec(command);
+	}
+*/
+	
+	
 	public static void startNewInstance(Class<?> klass, String token0, String token1, String token2)
 			throws IOException, InterruptedException {
+		
+		
+/*		String ssh = "ssh " + token0;
+
+//		String path = System.getProperty("user.dir");
+		
+		String path = "~/Desktop/Distributed_Assignment_1/bin/";
+		String cd = "cd " + path;
+
+		String args = Integer.toString(clientID) + " " + clientType + " " + clientAddress;
+		String java = "java Client " + args;
+
+		String command = ssh + " " + cd + ";" + java;
+		
+		System.out.println("****\t" + command);
+		Runtime.getRuntime().exec(command);
+*/		
+		
+		
 		String javaHome = System.getProperty("java.home");
 		String javaBin = javaHome + File.separator + "bin" + File.separator + "java";
 		String classpath = System.getProperty("java.class.path");
