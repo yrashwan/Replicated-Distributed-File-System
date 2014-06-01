@@ -39,7 +39,7 @@ public class Client {
 
 			Scanner in = new Scanner(System.in);
 			System.out
-					.println("for read enter 0, for write enter 1 ,2 for commit and 3 for abort; anything else to terminate!");
+					.println("Enter 0 for read,\n\t 1 for write,\n\t 2 for commit ,\n\t 3 for abort;\n\t anything else to terminate!");
 			while (in.hasNext()) {
 				int type = in.nextInt();
 				if (type == 0) {
@@ -58,7 +58,7 @@ public class Client {
 
 				} else if (type == 1) {
 					System.out
-							.println("enter file name to write followed by data, terminated by single line -1:");
+							.println("Enter 0 for read,\n\t 1 for write,\n\t 2 for commit ,\n\t 3 for abort;\n\t anything else to terminate!");
 					String fileName = in.next();
 					ArrayList<FileContent> data = filesData.get(fileName);
 					if (data == null) {
@@ -98,7 +98,8 @@ public class Client {
 					in.close();
 					return;
 				}
-				System.out.println("for read enter 0, for write enter 1 ,2 for commit and 3 for abort; anything else to terminate!");
+				System.out
+						.println("Enter 0 for read,\n\t 1 for write,\n\t 2 for commit ,\n\t 3 for abort;\n\t anything else to terminate!");
 			}
 			in.close();
 			System.out.println("Client is out!");

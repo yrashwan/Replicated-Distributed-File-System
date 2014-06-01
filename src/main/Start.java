@@ -26,10 +26,11 @@ public class Start {
 		Process process = builder.start();
 		// process.waitFor();
 		System.out.println("================ ");
-		// Scanner in = new Scanner(process.getInputStream());
-		// while(in.hasNext()){
-		// System.out.println(in.nextLine());
-		// }
+		 Scanner in = new Scanner(process.getInputStream());
+		 int cc =0;
+		 while(cc++ < 1 && in.hasNext()){
+			 System.out.println(in.nextLine());
+		 }
 		System.out.println("Starting Master Server");
 		System.out.println("================ ");
 		// System.out.println(process.exitValue());
@@ -44,15 +45,16 @@ public class Start {
 		String className = klass.getCanonicalName();
 
 		ProcessBuilder builder = new ProcessBuilder(javaBin, "-cp", classpath, className, token0,
-				token1, token2, token3);
+				token1, token2, token3, token4, token5, token6);
 		Process process = builder.start();
 		// process.waitFor();
 		System.out.println("================ ");
 		System.out.println("Starting replicate server number " + token6);
-		// Scanner in = new Scanner(process.getInputStream());
-		// while(in.hasNext()){
-		// System.out.println(in.nextLine());
-		// }
+		 Scanner in = new Scanner(process.getInputStream());
+		 int cc =0;
+		 while(cc++ < 1&& in.hasNext()){
+			 System.out.println(in.nextLine());
+		 }
 		System.out.println("================ ");
 		// System.out.println(process.exitValue());
 	}
@@ -118,7 +120,7 @@ public class Start {
 
 		Address masterAddress = new Address(tokens1[0], Integer.parseInt(tokens1[1]), tokens1[2]);
 
-		 regularMain(masterAddress);
-//		newProcessesMain(tokens1);
+//		 regularMain(masterAddress);
+		newProcessesMain(tokens1);
 	}
 }
